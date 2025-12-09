@@ -26,8 +26,8 @@ def plot_image_with_bbox(image, label, box,tensor_image=False):
     image = np.array(image)
     image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
     image = image.copy()
-    
-    image = cv.rectangle(image, pt1=(box[0], box[1]), pt2=(box[2], box[3]), color=(0,0,255), thickness=1)
+    box = box[0].numpy()
+    image = cv.rectangle(image, pt1=(int(box[0]), int(box[1])), pt2=(int(box[2]), int(box[3])), color=(0,0,255), thickness=1)
     plt.imshow(image)
     plt.show()
 
