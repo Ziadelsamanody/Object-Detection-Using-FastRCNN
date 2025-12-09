@@ -1,1 +1,1 @@
-from .utils import plot_image
+from .utils import plot_image,plot_image_with_bbox

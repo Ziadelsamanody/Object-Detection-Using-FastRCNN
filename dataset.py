@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset 
-from utils import plot_image
+from utils import plot_image, plot_image_with_bbox
 from torchvision.datasets import VOCDetection
 
 def voc_to_fast_rcnn(target, label_map):
@@ -68,4 +68,5 @@ if __name__ == "__main__":
     img, target = data[0]
     print(img)
     print(target)
-    plot_image(img)
+    # plot_image(img, label=target['labels'])
+    plot_image_with_bbox(img, target['labels'], box= target["boxes"])
