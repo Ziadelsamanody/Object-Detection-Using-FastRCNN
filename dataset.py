@@ -37,7 +37,7 @@ label_map = {clss : i + 1 for i, clss in enumerate(VOC_CLASSES)}  # starting fro
 
 
 class VOCFastRCNN(Dataset):
-    def __init__(self, year='2007', split='train'):
+    def __init__(self, year='2007', split='train', transform=None):
         try:
             self.dataset = VOCDetection(
                 root='./data',
@@ -53,13 +53,15 @@ class VOCFastRCNN(Dataset):
                 image_set=split,
                 download=False
             )
-    
+        self.tranform = transform
     def __len__(self):
         return len(self.dataset)
     
     def __getitem__(self, idx):
         img, target = self.dataset[idx]
         target = voc_to_fast_rcnn(target, label_map)
+        if self.tranform :
+            self.tranform(img)
 
         return img, target
 

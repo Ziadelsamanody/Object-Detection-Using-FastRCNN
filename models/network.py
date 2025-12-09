@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F 
 from torchvision import models
-from torchvision.ops import RoIPool, smooth_l1_loss
+from torchvision.ops import RoIPool
 from torchvision.ops.boxes import box_convert
+
 class FastRCNN(nn.Module):
     def __int__(self, num_classes): 
         super(FastRCNN, self).__init__()
@@ -79,3 +80,52 @@ class FastRCNNLoss(nn.Module):
         bbox_loss = smooth_l1_loss(bbox_pred_pos, bbox_targets_pos, beta=1.0)
 
         return cls_loss, bbox_loss
+    
+
+class FastRCNNBoxCode:
+    '''
+    encode and decode bbox deltas  for optimizing network and scale invariant
+    '''
+    def __init__(self, weights=(10., 10., 5., 5.)):
+        self.weights = torch.tensor(weights, dtype=torch.float32)
+
+    def encode_bbox(self, gt_boxes, proposal_boxes):
+        '''
+        gt_boxes : the ground truth of bbox 
+        proposal_boxes : the Roi boxes
+        should be both [N, 4]
+        '''
+        # convert  center_width- height
+        if gt_boxes.shape[- 1] == 4 :
+            proposal_boxes = box_convert(proposal_boxes, 'xyxy', 'cxcywh')
+            gt_boxes = box_convert(gt_boxes, 'xyxy', 'cxcywh')
+
+        px, py, pw, ph = proposal_boxes[:, 0], proposal_boxes[:, 1], proposal_boxes[:, 2], proposal_boxes[:, 3]
+        gx, gy, gw, gh = gt_boxes[:, 0], gt_boxes[:, 1], gt_boxes[:, 2], gt_boxes[:, 3]
+
+        tx = (gx - px) / pw
+        ty = (gy - py) / ph
+        tw = torch.log(gw / pw)
+        th = torch.log(gh / ph)
+
+        targets = torch.stack((tx, ty, tw, th), dim=1)
+        targets = targets * self.weights.to(targets.device)
+
+        return targets 
+    
+    def decode_bbox(self, pred_deltas, proposal_boxes):
+        '''inverse operation - in inference'''
+        
+        pred_deltas = pred_deltas / self.weights.to(pred_deltas.device)
+
+        px, py, pw, ph = proposal_boxes[:, 0], proposal_boxes[:, 1], proposal_boxes[:, 2], proposal_boxes[:, 3]
+        dx, dy, dw, dh = pred_deltas[:, 0], pred_deltas[:, 1], pred_deltas[:, 2], pred_deltas[:, 3]
+
+        pred_x = dx * pw + px 
+        pred_y = dy * ph + py 
+        pred_w = torch.exp(dw)* pw
+        pred_h = torch.exp(dh) * ph 
+
+        pred_boxes = torch.stack((pred_x, pred_y, pred_w ,pred_h), dim=1)
+        return box_convert(pred_boxes, 'cxcywh', 'xyxy') # return back for NMS
+    
