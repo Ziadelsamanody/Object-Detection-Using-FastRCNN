@@ -35,30 +35,3 @@ class FastRCNN(nn.Module):
         class_scores = self.classifier(fc2)
         bbox_deltas = self.bbox_regressor(fc2) # 4, 40  4* 10
         return class_scores, bbox_deltas
-    
-# if __name__ == "__main__":
-#     # create a model 
-#     num_classes = 10 
-#     model = FastRCNN(num_classes)
-
-#     # dummy_input_data 
-#     images = torch.randn(1, 3,  512, 512) # batch 1 image
-#     rois = torch.tensor([[0, 100, 100, 200, 200],
-#                          [0, 50, 100, 200, 210],
-#                          [0, 10, 35, 78, 100],
-#                          [0, 10, 20, 70, 70],
-#                          ], dtype=torch.float) 
-#       # Forward pass
-#     class_scores, bbox_deltas = model(images, rois)
-#     print("Class Scores:", class_scores[0])
-#     print("Bounding Box Deltas:", bbox_deltas[0])
-
-#     Class Scores: tensor([-0.0093, -0.0080, -0.0022, -0.0021,  0.0103, -0.0175,  0.0183,  0.0079,
-#         -0.0081,  0.0135], grad_fn=<SelectBackward0>)
-# Bounding Box Deltas: tensor([ 0.0119, -0.0026, -0.0049,  0.0092, -0.0074,  0.0194, -0.0265,  0.0215,
-#         -0.0061, -0.0207,  0.0214,  0.0071, -0.0037, -0.0070,  0.0012,  0.0108,
-#         -0.0085, -0.0085, -0.0071,  0.0184, -0.0242, -0.0161, -0.0070,  0.0132,
-#         -0.0255,  0.0192,  0.0021,  0.0036,  0.0003, -0.0123, -0.0023, -0.0071,
-#          0.0352,  0.0135, -0.0165,  0.0119,  0.0366,  0.0119, -0.0036, -0.0105],
-#        grad_fn=<SelectBackward0>)
-
