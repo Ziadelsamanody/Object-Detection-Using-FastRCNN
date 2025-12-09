@@ -61,7 +61,7 @@ class VOCFastRCNN(Dataset):
         img, target = self.dataset[idx]
         target = voc_to_fast_rcnn(target, label_map)
         if self.tranform :
-            self.tranform(img)
+            img = self.tranform(img)
 
         return img, target
 
