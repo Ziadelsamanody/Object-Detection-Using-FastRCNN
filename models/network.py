@@ -6,9 +6,9 @@ from torchvision.ops import RoIPool
 from torchvision.ops.boxes import box_convert
 
 class FastRCNN(nn.Module):
-    def __int__(self, num_classes): 
+    def __init__(self, num_classes): 
         super(FastRCNN, self).__init__()
-        resnet = models.resnet50(pretraied=True)
+        resnet = models.resnet50(weights=True)
         self.backbone = nn.Sequential(*list(resnet.children())[:-3])
 
         self.roi_pool = RoIPool(output_size=(7,7), spatial_scale=1.0/16.0)
@@ -36,6 +36,7 @@ class FastRCNN(nn.Module):
 
 class FastRCNNLoss(nn.Module):
     def __init__(self, box_reg_weights = (10., 10., 5., 5.)):
+        super(FastRCNNLoss, self).__init__()
         self.box_reg_weights = torch.tensor(box_reg_weights)
 
     
@@ -47,7 +48,7 @@ class FastRCNNLoss(nn.Module):
         less_than_one = (diff < beta).float()
 
         loss = less_than_one *0.5 * diff **2 / beta + (1 - less_than_one) * (diff - 0.5 * beta)
-        return loss
+        return loss.mean()
     
     def forward(self, cls_scores, bbox_pred, labels, bbox_targets):
         # bbox targets the encoded tx,ty,tw,th 
@@ -77,7 +78,7 @@ class FastRCNNLoss(nn.Module):
         bbox_pred_pos = bbox_pred_pos * self.box_reg_weights.to(bbox_pred_pos.device)
         bbox_targets_pos = bbox_targets_pos * self.box_reg_weights.to(bbox_targets_pos.device)
 
-        bbox_loss = smooth_l1_loss(bbox_pred_pos, bbox_targets_pos, beta=1.0)
+        bbox_loss = self.smooth_l1_loss(bbox_pred_pos, bbox_targets_pos, beta=1.0)
 
         return cls_loss, bbox_loss
     
