@@ -107,6 +107,6 @@ def match_rois_to_gt(rois, gt_boxes, gt_labels, image_size=(512, 512), pos_iou_t
         elif max_iou < neg_iou_thresh:
             matched_labels[i] = 0  # Background
             # For background, use the ROI itself as dummy box
-            matched_boxes[i] = roi_norm
+            matched_boxes[i] = torch.from_numpy(roi_norm)
     
     return matched_labels, matched_boxes
