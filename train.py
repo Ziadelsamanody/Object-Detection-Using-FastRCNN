@@ -8,6 +8,8 @@ from utils import plot_image, plot_image_with_bbox
 from utils import generate_rois_from_gt, match_rois_to_gt
 from torch.utils.data import DataLoader
 from dataset import VOCFastRCNN
+from torch.utils.tensorboard import SummaryWriter
+import os
 
 def custom_collate_fn(batch):
     """
@@ -47,11 +49,20 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 box_coder = FastRCNNBoxCode()
 
+# Setup TensorBoard
+log_dir = 'runs/fast_rcnn_training'
+os.makedirs(log_dir, exist_ok=True)
+writer = SummaryWriter(log_dir)
+print(f"📊 TensorBoard logging to: {log_dir}")
+
 epochs = 10
+global_step = 0
 
 for epoch in range(epochs):
     model.train()
     epoch_total_loss = 0
+    epoch_cls_loss = 0
+    epoch_bbox_loss = 0
     num_batches = 0
 
     for batch_idx, (images, targets) in enumerate(dataloader):
@@ -61,6 +72,9 @@ for epoch in range(epochs):
         optimizer.zero_grad()
         
         batch_loss = 0
+        batch_cls_loss = 0
+        batch_bbox_loss = 0
+        
         for i in range(len(images)):
             img = image_tensor[i : i + 1]
             gt_boxes = targets[i]['boxes'].to(device)
@@ -91,25 +105,49 @@ for epoch in range(epochs):
 
             # Accumulate losses (keep as tensors for backprop)
             batch_loss += (cls_loss + bbox_loss)
+            batch_cls_loss += cls_loss.item()
+            batch_bbox_loss += bbox_loss.item()
         
         # Average loss over images in batch
         batch_loss = batch_loss / len(images)
+        batch_cls_loss = batch_cls_loss / len(images)
+        batch_bbox_loss = batch_bbox_loss / len(images)
         
         # Backward pass
         batch_loss.backward()
         optimizer.step()
 
+        # Log to TensorBoard
+        writer.add_scalar('Loss/Total', batch_loss.item(), global_step)
+        writer.add_scalar('Loss/Classification', batch_cls_loss, global_step)
+        writer.add_scalar('Loss/BBox_Regression', batch_bbox_loss, global_step)
+        writer.add_scalar('Learning_Rate', optimizer.param_groups[0]['lr'], global_step)
+        global_step += 1
+
         # Log the loss value
         epoch_total_loss += batch_loss.item()
+        epoch_cls_loss += batch_cls_loss
+        epoch_bbox_loss += batch_bbox_loss
         num_batches += 1
         
         if batch_idx % 10 == 0:
             print(f"Epoch [{epoch+1}/{epochs}], Batch [{batch_idx}/{len(dataloader)}], "
-                  f"Loss: {batch_loss.item():.4f}")
+                  f"Total Loss: {batch_loss.item():.4f}, Cls: {batch_cls_loss:.4f}, BBox: {batch_bbox_loss:.4f}")
     
     avg_epoch_loss = epoch_total_loss / num_batches
-    print(f"Epoch [{epoch+1}/{epochs}] completed, Average Loss: {avg_epoch_loss:.4f}")
+    avg_cls_loss = epoch_cls_loss / num_batches
+    avg_bbox_loss = epoch_bbox_loss / num_batches
+    
+    # Log epoch averages
+    writer.add_scalar('Loss/Epoch_Total', avg_epoch_loss, epoch)
+    writer.add_scalar('Loss/Epoch_Classification', avg_cls_loss, epoch)
+    writer.add_scalar('Loss/Epoch_BBox_Regression', avg_bbox_loss, epoch)
+    
+    print(f"Epoch [{epoch+1}/{epochs}] completed, Avg Loss: {avg_epoch_loss:.4f}, "
+          f"Cls: {avg_cls_loss:.4f}, BBox: {avg_bbox_loss:.4f}")
 
 # Save model
 torch.save(model.state_dict(), 'fast_rcnn_voc.pth')
-print("Training completed!")
+writer.close()
+print("✅ Training completed!")
+print("📊 TensorBoard logs saved to:", log_dir)
