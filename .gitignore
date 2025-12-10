@@ -10,3 +10,6 @@ trainin.ipynb
 
 
 *.ipynb
+*.pth
+
+testimages/*

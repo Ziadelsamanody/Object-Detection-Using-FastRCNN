@@ -80,13 +80,14 @@ for epoch in range(epochs):
             gt_boxes = targets[i]['boxes'].to(device)
             gt_label = targets[i]['labels'].to(device)
             
-            # generate roi
+            # generate roi (returns normalized coordinates)
             rois = generate_rois_from_gt(gt_boxes.cpu(), image_size=(512,512), num_negative_samples=128)
             rois = rois.to(device)
             
-            # matched rois from gt
+            # matched rois from gt (pass image_size for proper coordinate handling)
             matched_labels, matched_boxes = match_rois_to_gt(
                 rois, gt_boxes, gt_label,
+                image_size=(512, 512),
                 pos_iou_thresh=0.5, neg_iou_thresh=0.1
             )
             

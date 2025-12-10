@@ -10,6 +10,7 @@ class FastRCNN(nn.Module):
         super(FastRCNN, self).__init__()
         resnet = models.resnet50(weights=True)
         self.backbone = nn.Sequential(*list(resnet.children())[:-3])
+        self.num_classes = num_classes
 
         self.roi_pool = RoIPool(output_size=(7,7), spatial_scale=1.0/16.0)
         

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 VOC_CLASSES = [
-    'back_ground',"aeroplane","bicycle","bird","boat","bottle","bus","car","cat","chair",
+    'background',"aeroplane","bicycle","bird","boat","bottle","bus","car","cat","chair",
     "cow","diningtable","dog","horse","motorbike","person","pottedplant",
     "sheep","sofa","train","tvmonitor"
 ]
