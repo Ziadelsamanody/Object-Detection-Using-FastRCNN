@@ -158,5 +158,6 @@ def test_image(image_path, model_path='models/fast_rcnn_voc.pth', output_path='o
 
         
 if __name__ == "__main__":
-    # Start with lower threshold to see if model detects anything
-    test_image('testimages\download.jpeg', score_threshold=0.05, verbose=True)
+    # Start with VERY low threshold to see if model detects anything
+    print("⚠️  Testing with threshold=0.0001 to force detections...")
+    test_image('testimages\\download.jpeg', score_threshold=0.0001, verbose=True)

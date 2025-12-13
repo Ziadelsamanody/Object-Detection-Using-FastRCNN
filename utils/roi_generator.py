@@ -8,17 +8,17 @@ def generate_rois_from_gt(gt_boxes, image_size, num_negative_samples=128):
     (Used during training)
     
     Args:
-        gt_boxes: Ground truth boxes [N, 4] in format [x1, y1, x2, y2]
+        gt_boxes: Ground truth boxes [N, 4] in NORMALIZED format [x1, y1, x2, y2] (0-1 range)
         image_size: Tuple (height, width)
         num_negative_samples: Number of random background proposals
     
     Returns:
-        rois: Tensor [M, 5] where M = N + num_negative_samples
+        rois: Tensor [M, 5] where M = N + num_negative_samples (normalized coords)
     """
     H, W = image_size
     rois = []
     
-    # Add ground truth boxes
+    # Add ground truth boxes (already normalized, just add batch index)
     for box in gt_boxes:
         rois.append([0] + box.tolist())
     
