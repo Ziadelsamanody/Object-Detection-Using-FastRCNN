@@ -80,13 +80,18 @@ for epoch in range(epochs):
             gt_boxes = targets[i]['boxes'].to(device)
             gt_label = targets[i]['labels'].to(device)
             
+            # Normalize ground truth boxes to [0, 1] range to match ROI coordinate system
+            gt_boxes_norm = gt_boxes.clone()
+            gt_boxes_norm[:, [0, 2]] /= 512.0  # x coordinates
+            gt_boxes_norm[:, [1, 3]] /= 512.0  # y coordinates
+            
             # generate roi (returns normalized coordinates)
-            rois = generate_rois_from_gt(gt_boxes.cpu(), image_size=(512,512), num_negative_samples=128)
+            rois = generate_rois_from_gt(gt_boxes_norm.cpu(), image_size=(512,512), num_negative_samples=128)
             rois = rois.to(device)
             
             # matched rois from gt (pass image_size for proper coordinate handling)
             matched_labels, matched_boxes = match_rois_to_gt(
-                rois, gt_boxes, gt_label,
+                rois, gt_boxes_norm, gt_label,
                 image_size=(512, 512),
                 pos_iou_thresh=0.5, neg_iou_thresh=0.1
             )

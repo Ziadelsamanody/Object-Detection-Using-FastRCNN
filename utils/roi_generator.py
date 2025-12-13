@@ -62,9 +62,9 @@ def match_rois_to_gt(rois, gt_boxes, gt_labels, image_size=(512, 512), pos_iou_t
     
     Args:
         rois: Tensor [N, 5] - proposals in normalized coords (can be on CUDA)
-        gt_boxes: Tensor [M, 4] - ground truth boxes in absolute coords
+        gt_boxes: Tensor [M, 4] - ground truth boxes in NORMALIZED coords [0, 1]
         gt_labels: Tensor [M] - ground truth labels
-        image_size: Tuple (height, width) for denormalization
+        image_size: Tuple (height, width) for denormalization to compute IoU
         pos_iou_thresh: IoU threshold for positive samples
         neg_iou_thresh: IoU threshold for negative samples
     
@@ -91,9 +91,10 @@ def match_rois_to_gt(rois, gt_boxes, gt_labels, image_size=(512, 512), pos_iou_t
         max_iou = 0
         max_idx = -1
         
-        # Find best matching GT box
-        for j, gt_box in enumerate(gt_boxes_cpu):
-            iou = compute_iou(roi_box, gt_box.numpy())
+        # Find best matching GT box (denormalize GT boxes for IoU computation)
+        for j, gt_box_norm in enumerate(gt_boxes_cpu):
+            gt_box = gt_box_norm.numpy() * np.array([W, H, W, H])  # Denormalize
+            iou = compute_iou(roi_box, gt_box)
             if iou > max_iou:
                 max_iou = iou
                 max_idx = j
@@ -101,9 +102,8 @@ def match_rois_to_gt(rois, gt_boxes, gt_labels, image_size=(512, 512), pos_iou_t
         # Assign label based on IoU
         if max_iou >= pos_iou_thresh:
             matched_labels[i] = gt_labels_cpu[max_idx]
-            # Store normalized GT boxes
-            gt_box_abs = gt_boxes_cpu[max_idx]
-            matched_boxes[i] = gt_box_abs / torch.tensor([W, H, W, H], dtype=torch.float32)
+            # Store normalized GT boxes (already normalized)
+            matched_boxes[i] = gt_boxes_cpu[max_idx]
         elif max_iou < neg_iou_thresh:
             matched_labels[i] = 0  # Background
             # For background, use the ROI itself as dummy box

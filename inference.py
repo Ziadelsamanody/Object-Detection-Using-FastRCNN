@@ -47,16 +47,28 @@ def generate_proposal(h, w, num_proposals= 2000):
 
 
 
-def inference(model, images, propsal, score_thres = 0.05, nms_thresh=0.5):
+def inference(model, images, propsal, score_thres = 0.01, nms_thresh=0.5, verbose=False):
     model.eval()
     with torch.no_grad():
         cls_scores, bbox_deltas = model(images, propsal)
         probablities = F.softmax(cls_scores, dim=1)
         bbox_deltas= bbox_deltas.view(-1, model.num_classes, 4)
 
+        if verbose:
+            print(f"\n📊 Inference Debug:")
+            print(f"Proposals: {len(propsal)}")
+            print(f"Max probability per class:")
+            for cls_idx in range(model.num_classes):
+                max_prob = probablities[:, cls_idx].max().item()
+                if cls_idx == 0:
+                    print(f"  Class {cls_idx} (background): {max_prob:.4f}")
+                else:
+                    print(f"  Class {cls_idx} ({VOC_CLASSES[cls_idx]}): {max_prob:.4f}")
+
         all_pred_boxes = []
         all_scores = []
         all_labels = []
+        
         for cls_idx  in range(1, model.num_classes): 
             scores = probablities[:, cls_idx]
             keep = scores > score_thres
@@ -64,14 +76,24 @@ def inference(model, images, propsal, score_thres = 0.05, nms_thresh=0.5):
             if not keep.any():
                 continue
 
+            if verbose:
+                print(f"\n✓ Class {cls_idx} ({VOC_CLASSES[cls_idx]}): {keep.sum()} detections above {score_thres}")
+
             deltas = bbox_deltas[:, cls_idx][keep]
             boxes = propsal[keep, 1:]  # Remove batch index, get [x1, y1, x2, y2]
             boxes_cxcyhw = box_convert(boxes, "xyxy", 'cxcywh')
 
             pred_boxes = box_coder.decode_bbox(deltas, boxes_cxcyhw)
+            
+            # Clamp boxes to valid range [0, 1]
+            pred_boxes = torch.clamp(pred_boxes, 0.0, 1.0)
 
             # Nms
             keep_nms = nms(pred_boxes, scores[keep], nms_thresh)
+            
+            if verbose and len(keep_nms) > 0:
+                print(f"  After NMS: {len(keep_nms)} detections")
+            
             all_pred_boxes.append(pred_boxes[keep_nms])
             all_scores.append(scores[keep][keep_nms])
             all_labels.append(torch.full_like(scores[keep][keep_nms], cls_idx - 1))
@@ -79,13 +101,17 @@ def inference(model, images, propsal, score_thres = 0.05, nms_thresh=0.5):
         return all_pred_boxes, all_scores, all_labels
 
 
-def test_image(image_path, model_path='models/fast_rcnn_voc.pth', output_path='output.jpg'):
+def test_image(image_path, model_path='models/fast_rcnn_voc.pth', output_path='output.jpg', score_threshold=0.3, verbose=True):
     # load model 
     model = load_model(model_path)
 
     # load image 
     image = Image.open(image_path).convert('RGB')
     orig_w, orig_h = image.size
+    
+    if verbose:
+        print(f"\n📷 Image: {image_path}")
+        print(f"Original size: {orig_w}x{orig_h}")
 
     transform = transforms.Compose([
         transforms.Resize((512, 512)),
@@ -96,9 +122,12 @@ def test_image(image_path, model_path='models/fast_rcnn_voc.pth', output_path='o
 
     # generate proposal
     proposals = generate_proposal(512, 512).to(device)
+    
+    if verbose:
+        print(f"Generated {len(proposals)} proposals")
 
     # run inference
-    boxes, scores, labels = inference(model, image_tensor, proposals)
+    boxes, scores, labels = inference(model, image_tensor, proposals, score_thres=score_threshold, verbose=verbose)
     # draw
     if boxes : 
         image = cv.imread(image_path)
@@ -129,4 +158,5 @@ def test_image(image_path, model_path='models/fast_rcnn_voc.pth', output_path='o
 
         
 if __name__ == "__main__":
-    test_image('testimage/000012.jpg')
+    # Start with lower threshold to see if model detects anything
+    test_image('testimages\download.jpeg', score_threshold=0.05, verbose=True)
