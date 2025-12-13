@@ -22,21 +22,27 @@ def generate_rois_from_gt(gt_boxes, image_size, num_negative_samples=128):
     for box in gt_boxes:
         rois.append([0] + box.tolist())
     
-    # Add random negative samples
+    # Add random negative samples (in absolute coords, will normalize later)
+    negative_rois = []
     for _ in range(num_negative_samples):
         x1 = np.random.randint(0, W - 20)
         y1 = np.random.randint(0, H - 20)
         x2 = np.random.randint(x1 + 10, min(x1 + 200, W))
         y2 = np.random.randint(y1 + 10, min(y1 + 200, H))
-        rois.append([0, x1, y1, x2, y2])
+        negative_rois.append([0, x1, y1, x2, y2])
     
+    # Convert negative ROIs to tensor and normalize
+    if len(negative_rois) > 0:
+        neg_tensor = torch.tensor(negative_rois, dtype=torch.float32)
+        neg_tensor[:, 1] /= W  # x1
+        neg_tensor[:, 2] /= H  # y1
+        neg_tensor[:, 3] /= W  # x2
+        neg_tensor[:, 4] /= H  # y2
+        negative_rois = neg_tensor.tolist()
+    
+    # Combine GT boxes (already normalized) with normalized negative samples
+    rois.extend(negative_rois)
     rois_tensor = torch.tensor(rois, dtype=torch.float32)
-    
-    # Normalize coordinates to [0, 1] range
-    rois_tensor[:, 1] /= W  # x1
-    rois_tensor[:, 2] /= H  # y1
-    rois_tensor[:, 3] /= W  # x2
-    rois_tensor[:, 4] /= H  # y2
     
     return rois_tensor
 
